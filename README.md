@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Edviron School Payments Dashboard (Frontend)
 
 A Vite + React frontend for viewing and filtering school payment transactions and checking statuses against a protected NestJS API.  
@@ -93,3 +94,10 @@ Add images under `docs/screenshots/` and reference them here:
 
 - Ensure the API is reachable at `VITE_API_BASE_URL` and that a valid JWT is present in `localStorage.token`.  
 - For production hosting, configure the correct API base URL via environment variables.  
+=======
+# environ_project
+# environ_project
+# environ_project
+# environ_project
+# edviron_project
+>>>>>>> 0c0b94f (first commit)
