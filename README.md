@@ -1,103 +1,210 @@
-<<<<<<< HEAD
-# Edviron School Payments Dashboard (Frontend)
+# 🎓 Edviron School Payments & Dashboard
 
-A Vite + React frontend for viewing and filtering school payment transactions and checking statuses against a protected NestJS API.  
+A **full-stack project** for managing school payment transactions, featuring: 
+- **Backend:** NestJS REST API secured with JWT 
+- **Frontend:** Vite + React dashboard consuming protected endpoints 
+- **Database:** MongoDB with aggregation pipelines for enriched transaction views 
+- **Orchestration:** Docker Compose for consistent local development 
 
-## Prerequisites
+---
 
-- Running API on http://localhost:3000 with JWT-protected routes.  
-- Node.js 20+ and npm installed locally.  
+## 📖 Table of Contents
+1. [Overview](#-overview) 
+2. [Architecture](#-architecture) 
+3. [Prerequisites](#-prerequisites) 
+4. [Project Setup](#-project-setup) 
+- [Using Docker Compose](#using-docker-compose) 
+- [Without Docker](#without-docker) 
+5. [Environment Variables](#-environment-configuration) 
+6. [Authentication Flow](#-authentication-flow) 
+7. [API Endpoints](#-api-endpoints) 
+8. [Data Model](#-data-model) 
+9. [Frontend Functionality](#-frontend-pages--functionality) 
+10. [Backend Functionality](#-backend-functionality) 
+11. [Docker Services](#-docker-services) 
+12. [Troubleshooting](#-troubleshooting) 
+13. [Screenshots](#-screenshots) 
+14. [Security Notes](#-security-notes) 
+15. [License](#-license) 
 
-## Environment
+---
 
-Create ./frontend/.env with:
+## 🚀 Overview
+- **Backend** 
+Exposes routes to:
+- List transactions (with pagination, sorting, and filtering) 
+- Filter transactions by school 
+- Check transaction status 
+- Initiate a payment 
+- Ingest webhooks for payment updates 
+
+- **Frontend** 
+Provides:
+- Transaction overview table with filters and pagination 
+- School-specific transaction view 
+- Status lookup by `custom_order_id` 
+
+- **Local Development** 
+Uses Docker Compose for API (`3000`), UI (`5173`), MongoDB (`27017`), and Mongo Express (`8081`). 
+
+---
+
+## 🏗️ Architecture
+- **Services:** `web` (React), `api` (NestJS), `mongo`, `mongo-express` 
+- **Data Model:** 
+- `orders`: stores school, gateway, and student transaction data 
+- `orderstatuses`: stores status updates, amounts, and timestamps 
+- Aggregation joins collections for enriched lists 
+- **Security:** 
+- All endpoints (except auth) require JWT authentication 
+
+---
+
+## 📦 Prerequisites
+- [Node.js](https://nodejs.org/) **20+** and npm 
+- [Docker](https://www.docker.com/) & Docker Compose 
+
+---
+
+## ⚡ Project Setup
+
+### Using Docker Compose
+```bash
+# 1. Create env files
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+
+# 2. Start the stack
+docker compose up -d
+
+# 3. Access services
+Frontend: http://localhost:5173 
+Backend API: http://localhost:3000
+
+Without Docker
+ 
+# Backend
+cd backend
+npm ci
+npm run start:dev
+
+# Frontend
+cd frontend
+npm ci
+npm run dev
+
+
+🔑 Environment Configuration
+backend/.env
+ 
+MONGODB_URI=mongodb://mongo:27017/edviron
+JWT_SECRET=dev-jwt-secret
+JWT_EXPIRES=1d
+PAYMENT_API_BASE=https://example-payments.local
+PAYMENT_API_KEY_JWT=replace-with-signing-key
+PG_KEY=edvtest01
+SCHOOL_ID=65b0e6293e9f76a9694d84b4
+
+frontend/.env
+ 
 VITE_API_BASE_URL=http://localhost:3000
 
-text
-The app reads `import.meta.env.VITE_API_BASE_URL` to call the backend.  
 
-## Setup
+🔐 Authentication Flow
+Register → POST /auth/register (creates user, bcrypt password)
+Login → POST /auth/login returns { "access_token": "..." }
+Frontend → Store token in localStorage and attach to requests:
 
-from ./frontend
-npm ci
-npm run dev -- --host 0.0.0.0 --port 5173 # development
-npm run build # production build
-npm run preview -- --host 0.0.0.0 --port 5173
+ 
+localStorage.setItem('token', '<JWT>');
 
-text
 
-## Authentication (JWT)
+📡 API Endpoints
+Method
+Endpoint
+Description
+GET
+/transactions
+List all transactions with pagination, filters, and sorting
+GET
+/transactions/school/:schoolId
+List transactions by school
+GET
+/transaction-status/:custom_order_id
+Check latest status by custom order ID
+POST
+/create-payment
+Initiate a new payment
+POST
+/webhook
+Ingest payment updates and store statuses
 
-Obtain a token from the backend login route and store it in the browser:
-localStorage.setItem('token','<JWT>');
+💾 Data Model
+Orders
+school_id, gateway_name, custom_order_id, student_info
+OrderStatus
+References order by collect_id
+Stores amounts, gateway, status, payment_time
+Aggregation Pipeline
+$lookup → join orders and orderstatuses
+$unwind → latest status
+$project → select fields for UI
+$sort, $skip, $limit → pagination
 
-text
-Reload the page so requests include `Authorization: Bearer <JWT>`.  
+🖥️ Frontend Pages & Functionality
+Transactions Overview
 
-## Pages and Functionality
+Calls GET /transactions
+Renders collect_id, school_id, gateway, amounts, status, payment_time
+Supports pagination, sorting, filters, and URL state persistence
+Transactions by School
 
-### Transactions (Overview)
-- Data source: `GET /transactions?limit=&page=&sort=&order=&status=&schoolIds=&from=&to=`  
-- Columns: `collect_id, school_id, gateway, order_amount, transaction_amount, status, custom_order_id`  
-- Features: pagination, sort by `payment_time` or `status`, status multi-select, optional school/date filters, and URL persistence for shareable views.  
+Calls GET /transactions/school/:schoolId
+Provides a focused school view
+Transaction Status Check
 
-### Transactions by School
-- Data source: `GET /transactions/school/:schoolId?limit=&page=&sort=&order=`  
-- UI: select a `school_id` then list and paginate results.  
+Calls GET /transaction-status/:custom_order_id
+Displays latest snapshot
+Optional: Create Payment
 
-### Status Check
-- Data source: `GET /transaction-status/:custom_order_id`  
-- UI: input `custom_order_id` and display current status.  
+Calls POST /create-payment
+Signs payload, forwards request, records initiated status
 
-## Local Test Data (optional)
+⚙️ Backend Functionality
+Auth → Register/Login with bcrypt & JWT
+Transactions → Aggregation for listing & filtering
+Payments → Initiation with signing key (PAYMENT_API_KEY_JWT)
+Webhooks → Update or insert OrderStatus records
+Guards → JWT AuthGuard for all non-auth routes
 
-1) Insert an Order (e.g., via DB UI):
-{
-"school_id": "SCH-001",
-"gateway_name": "test",
-"custom_order_id": "CUST-001",
-"student_info": { "name": "NA", "id": "NA", "email": "NA" }
-}
+🐳 Docker Services
+Service
+Port
+Description
+API (NestJS)
+3000
+Backend REST API
+Web (React)
+5173
+Frontend UI
+MongoDB
+27017
+Database
+Mongo Express
+8081
+DB Admin UI
 
-text
+🛠️ Troubleshooting
+404 from frontend → Ensure VITE_API_BASE_URL is set correctly
+401 Unauthorized → Refresh JWT, set in localStorage, reload app
+Empty data → Seed an Order and post a webhook with matching custom_order_id
 
-2) Post a webhook:
-curl -X POST "$VITE_API_BASE_URL/webhook"
--H "Content-Type: application/json"
--H "Authorization: Bearer <JWT>"
--d '{
-"status": 1,
-"order_info": {
-"order_id": "CUST-001",
-"order_amount": 1000,
-"transaction_amount": 1000,
-"gateway": "test",
-"bank_reference": "BR-001",
-"status": "success",
-"payment_mode": "upi",
-"payemnt_details": "upi-xyz",
-"Payment_message": "ok",
-"payment_time": "2024-01-01T10:00:00.000Z",
-"error_message": ""
-}
-}'
 
-text
+transactions.png → Transactions overview
+school.png → School view
+status.png → Status check
 
-## Screenshots
-
-Add images under `docs/screenshots/` and reference them here:
-- Transactions: `docs/screenshots/transactions.png`  
-- Status: `docs/screenshots/status.png`  
-
-## Notes
-
-- Ensure the API is reachable at `VITE_API_BASE_URL` and that a valid JWT is present in `localStorage.token`.  
-- For production hosting, configure the correct API base URL via environment variables.  
-=======
-# environ_project
-# environ_project
-# environ_project
-# environ_project
-# edviron_project
->>>>>>> 0c0b94f (first commit)
+🔒 Security Notes
+Never commit .env or secrets
+Guard all non-auth routes with JWT
+Keep payment keys and JWT secrets private
